@@ -1,5 +1,26 @@
+# Virtual Environment
 newenv/
+
+# Environment variables (secrets)
 .env
+
+# Python cache
 __pycache__/
+*.pyc
+
+# Database files
 *.db
+
+# Logs
 logs/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# DeepFace cache (important)
+.deepface/
+
+# VS Code (optional)
+.vscode/

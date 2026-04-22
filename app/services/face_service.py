@@ -3,65 +3,80 @@ import numpy as np
 import json
 from app.models.db import get_all_users
 import logging
-import face_recognition
+from deepface import DeepFace
+import os
 
 logger = logging.getLogger(__name__)
+
+# 🔥 reduce tensorflow logs
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+
+# 🔥 preload model (important for speed)
+DeepFace.build_model("SFace")
 
 
 def get_face_embedding(img):
     try:
-        img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        # ⚡ resize with better ratio (more stable than 320x240)
+        img = cv2.resize(img, (224, 224))
 
-        face_locations = face_recognition.face_locations(img_rgb)
+        # 🔥 get embedding
+        result = DeepFace.represent(
+            img_path=img,
+            model_name="SFace",
+            enforce_detection=False,
+            detector_backend="opencv"  # faster + stable
+        )
 
-        if len(face_locations) == 0:
-            return None, "No face detected"
+        # ❌ no face
+        if not result or len(result) == 0:
+            return None, "No face detected. Ensure proper lighting."
 
-        if len(face_locations) > 1:
-            return None, "Multiple faces detected"
+        # ❌ multiple faces
+        if len(result) > 1:
+            return None, "Multiple faces detected. Only one face allowed."
 
-        encodings = face_recognition.face_encodings(img_rgb, face_locations)
-
-        if not encodings:
-            return None, "Face encoding failed"
-
-        return encodings[0], None
+        embedding = np.array(result[0]["embedding"])
+        return embedding, None
 
     except Exception as e:
         logger.error(f"Embedding error: {str(e)}")
         return None, str(e)
 
 
-def recognize_user(embedding, tolerance=0.6):
+def recognize_user(embedding, threshold=13):
     try:
         users = get_all_users()
 
-        known_encodings = []
-        user_data = []
+        best_match = None
+        best_distance = float("inf")
 
         for u in users:
             if not u.get("embedding"):
                 continue
 
             try:
-                enc = np.array(json.loads(u["embedding"]))
-                known_encodings.append(enc)
-                user_data.append(u)
+                stored = np.array(json.loads(u["embedding"]))
             except:
                 continue
 
-        if not known_encodings:
-            return None, None
+            # 🔥 compute distance
+            distance = np.linalg.norm(stored - embedding)
 
-        matches = face_recognition.compare_faces(known_encodings, embedding, tolerance)
-        distances = face_recognition.face_distance(known_encodings, embedding)
+            # 🧠 DEBUG (keep this while testing)
+            print(f"User: {u.get('username')} | Distance: {distance:.2f}")
 
-        best_match_index = np.argmin(distances)
+            # 🔍 best match selection
+            if distance < best_distance:
+                best_distance = distance
+                best_match = u
 
-        if matches[best_match_index]:
-            user = user_data[best_match_index]
-            return user["id"], user.get("full_name") or user.get("username")
+        # ✅ final decision
+        if best_match and best_distance < threshold:
+            print(f"✅ MATCH FOUND: {best_match.get('username')} (Distance: {best_distance:.2f})")
+            return best_match["id"], best_match.get("full_name") or best_match.get("username")
 
+        print(f"❌ NO MATCH (Best Distance: {best_distance:.2f})")
         return None, None
 
     except Exception as e:
@@ -69,8 +84,8 @@ def recognize_user(embedding, tolerance=0.6):
         return None, None
 
 
-def check_duplicate_face(embedding, tolerance=0.5):
-    user_id, name = recognize_user(embedding, tolerance)
+def check_duplicate_face(embedding, threshold=13):
+    user_id, name = recognize_user(embedding, threshold)
     if user_id:
         return True, name
     return False, None
