@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+
+{% block title %}Register User - Face Recognition Attendance{% endblock %}
+
+{% block content %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('pageTitle').textContent = 'Register New User';
+    });
+</script>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-lg">
+            <div class="card-body p-4">
+                <!-- Header -->
+                <div class="mb-4">
+                    <h3 class="fw-bold mb-2">Register New User</h3>
+                    <p class="text-muted">Capture a face image to register a new user in the system</p>
+                </div>
+
+                <!-- Form -->
+                <form id="registrationForm">
+                    <!-- Name Input -->
+                    <div class="mb-4">
+                        <label for="userName" class="form-label fw-semibold text-dark">Full Name</label>
+                        <div class="input-group">
+                            <span class="input-group-text bg-light border-0">
+                                <i class="bi bi-person text-primary"></i>
+                            </span>
+                            <input 
+                                type="text" 
+                                id="userName" 
+                                class="form-control form-control-lg border-start-0" 
+                                placeholder="Enter full name" 
+                                autocomplete="off"
+                                required>
+                        </div>
+                        <small class="text-muted d-block mt-2">Enter the person's full name (e.g., John Doe)</small>
+                    </div>
+
+                    <!-- Camera Preview -->
+                    <div class="mb-4">
+                        <label class="form-label fw-semibold text-dark">Camera Preview</label>
+                        <div class="camera-container position-relative rounded overflow-hidden bg-dark">
+                            <video id="videoElement" autoplay playsinline muted class="w-100 h-100"></video>
+                            <canvas id="canvasElement" style="display: none;"></canvas>
+                            
+                            <!-- Camera Frame Overlay -->
+                            <div class="camera-frame position-absolute top-50 start-50 translate-middle">
+                                <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Crect x='20' y='20' width='160' height='160' fill='none' stroke='%23ffc107' stroke-width='3'/%3E%3C/svg%3E" 
+                                     alt="Face frame" style="width: 180px; height: 180px; opacity: 0.7;">
+                            </div>
+
+                            <!-- Loading Indicator -->
+                            <div id="loadingSpinner" class="position-absolute top-50 start-50 translate-middle d-none">
+                                <div class="spinner-border text-light" role="status">
+                                    <span class="visually-hidden">Loading...</span>
+                                </div>
+                            </div>
+                        </div>
+                        <small class="text-muted d-block mt-2">
+                            <i class="bi bi-info-circle"></i>
+                            Position your face within the frame and ensure proper lighting
+                        </small>
+                    </div>
+
+                    <!-- Action Buttons -->
+                    <div class="d-grid gap-2 gap-sm-3 d-sm-flex">
+                        <button type="button" id="captureBtn" class="btn btn-primary btn-lg flex-grow-1">
+                            <i class="bi bi-camera-fill me-2"></i>
+                            Capture & Register
+                        </button>
+                        <button type="reset" class="btn btn-outline-secondary btn-lg">
+                            <i class="bi bi-arrow-clockwise me-2"></i>
+                            Clear
+                        </button>
+                    </div>
+
+                    <!-- Status Message -->
+                    <div id="statusMessage" class="mt-4 d-none" role="alert"></div>
+                </form>
+
+                <!-- Info Box -->
+                <div class="alert alert-info alert-dismissible fade show mt-4 mb-0" role="alert">
+                    <i class="bi bi-lightbulb me-2"></i>
+                    <strong>Tips for better results:</strong>
+                    <ul class="mb-0 mt-2 small">
+                        <li>Ensure good lighting on your face</li>
+                        <li>Look directly at the camera</li>
+                        <li>Keep your face centered in the frame</li>
+                        <li>Avoid wearing sunglasses or hats</li>
+                    </ul>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .camera-container {
+        width: 100%;
+        aspect-ratio: 4/3;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #000;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .camera-container video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .camera-frame {
+        pointer-events: none;
+        z-index: 10;
+    }
+</style>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        startCamera('videoElement');
+    });
+
+    async function readJsonSafely(response) {
+        const rawText = await response.text();
+
+        try {
+            return JSON.parse(rawText);
+        } catch (error) {
+            console.error('Non-JSON register response:', rawText);
+            throw new Error('The server returned an invalid response while processing the face registration.');
+        }
+    }
+
+    document.getElementById('captureBtn').addEventListener('click', async () => {
+        const nameInput = document.getElementById('userName');
+        const name = nameInput.value.trim();
+        
+        if (!name) {
+            notifyError('Please enter a name first');
+            nameInput.focus();
+            return;
+        }
+
+        const btn = document.getElementById('captureBtn');
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 30000);
+        let base64Img = null;
+        
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Registering...';
+
+        try {
+            base64Img = captureBase64('videoElement', 'canvasElement');
+            const res = await fetch('/api/register-user', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: name, image: base64Img }),
+                signal: controller.signal
+            });
+            const data = await readJsonSafely(res);
+            
+            if (data.success) {
+                notifySuccess(`${name} registered successfully!`);
+                document.getElementById('registrationForm').reset();
+                setTimeout(() => {
+                    window.location.href = '/';
+                }, 2000);
+            } else {
+                notifyError(data.message || 'Registration failed');
+            }
+        } catch (err) {
+            if (err.name === 'AbortError') {
+                notifyError('Face registration timed out after 30 seconds. Please check the server face-recognition setup and try again.');
+            } else {
+                notifyError(err.message || 'Network error: Could not connect to server');
+            }
+        } finally {
+            clearTimeout(timeoutId);
+            btn.disabled = false;
+            btn.innerHTML = '<i class="bi bi-camera-fill me-2"></i>Capture & Register';
+        }
+    });
+</script>
+{% endblock %}
+

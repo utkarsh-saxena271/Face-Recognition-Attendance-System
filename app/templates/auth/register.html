@@ -1,0 +1,409 @@
+{% extends "base.html" %}
+
+{% block title %}Register Account - FaceAttend System{% endblock %}
+
+{% block content %}
+<style>
+    /* Override body styles for register page only */
+    html, body {
+        height: 100%;
+        margin: 0;
+        padding: 0;
+    }
+    
+    .register-wrapper {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        min-height: 100vh;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 20px;
+    }
+    
+    .register-container {
+        width: 100%;
+        max-width: 500px;
+    }
+    
+    .register-card {
+        background: white;
+        border-radius: 12px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        padding: 40px;
+    }
+    
+    .register-header {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+    
+    .register-logo {
+        width: 60px;
+        height: 60px;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border-radius: 12px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        margin: 0 auto 15px;
+        color: white;
+        font-size: 1.8rem;
+    }
+    
+    .register-header h1 {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #1f2937;
+        margin-bottom: 5px;
+    }
+    
+    .register-header p {
+        color: #6b7280;
+        font-size: 0.95rem;
+    }
+    
+    .form-control, .form-select {
+        border: 1px solid #e5e7eb;
+        border-radius: 8px;
+        padding: 12px 15px;
+        font-size: 0.95rem;
+        transition: all 0.2s ease;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: #667eea;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        outline: none;
+    }
+    
+    .input-group-text {
+        background: transparent;
+        border: 1px solid #e5e7eb;
+        border-right: none;
+        color: #6b7280;
+    }
+    
+    .form-control {
+        border-left: none;
+    }
+    
+    .form-group {
+        margin-bottom: 20px;
+    }
+    
+    .form-label {
+        font-weight: 500;
+        color: #1f2937;
+        margin-bottom: 8px;
+        font-size: 0.95rem;
+    }
+    
+    .btn-register {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        border: none;
+        color: white;
+        font-weight: 600;
+        padding: 12px;
+        border-radius: 8px;
+        transition: all 0.3s ease;
+        width: 100%;
+        margin-top: 10px;
+        cursor: pointer;
+    }
+    
+    .btn-register:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 8px 16px rgba(102, 126, 234, 0.3);
+        color: white;
+    }
+    
+    .btn-register:active {
+        transform: translateY(0);
+    }
+    
+    .alert {
+        border: none;
+        border-radius: 8px;
+        padding: 12px 15px;
+        margin-bottom: 20px;
+        font-size: 0.9rem;
+    }
+    
+    .alert-danger {
+        background: #fee2e2;
+        color: #991b1b;
+        border-left: 4px solid #ef4444;
+    }
+    
+    .register-footer {
+        text-align: center;
+        margin-top: 25px;
+        font-size: 0.9rem;
+    }
+    
+    .register-footer a {
+        color: #667eea;
+        text-decoration: none;
+        font-weight: 600;
+    }
+    
+    .register-footer a:hover {
+        text-decoration: underline;
+    }
+    
+    .password-strength {
+        height: 4px;
+        border-radius: 2px;
+        margin-top: 5px;
+        background: #e5e7eb;
+    }
+    
+    .password-strength.weak {
+        background: #ef4444;
+    }
+    
+    .password-strength.fair {
+        background: #f59e0b;
+    }
+    
+    .password-strength.good {
+        background: #3b82f6;
+    }
+    
+    .password-strength.strong {
+        background: #10b981;
+    }
+    
+    .form-check-label {
+        color: #1f2937;
+        font-size: 0.9rem;
+    }
+    
+    small {
+        color: #6b7280;
+        font-size: 0.85rem;
+    }
+</style>
+
+<div class="register-wrapper">
+    <div class="register-container">
+        <div class="register-card">
+            <!-- Header -->
+            <div class="register-header">
+                <div class="register-logo">
+                    <i class="bi bi-camera-fill"></i>
+                </div>
+                <h1>Create Account</h1>
+                <p>Join FaceAttend System</p>
+            </div>
+
+            <!-- Alerts -->
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ 'danger' if category == 'error' else 'success' }} alert-dismissible fade show" role="alert">
+                            <i class="bi bi-{% if category == 'error' %}exclamation-circle{% else %}check-circle{% endif %} me-2"></i>
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+
+            <!-- Registration Form -->
+            <form method="POST" id="registerForm" novalidate>
+                <!-- Full Name -->
+                <div class="form-group">
+                    <label for="fullName" class="form-label">Full Name</label>
+                    <div class="input-group">
+                        <span class="input-group-text">
+                            <i class="bi bi-person-badge"></i>
+                        </span>
+                        <input 
+                            type="text" 
+                            id="fullName" 
+                            name="full_name" 
+                            class="form-control" 
+                            placeholder="John Doe" 
+                            required>
+                    </div>
+                </div>
+
+                <!-- Username -->
+                <div class="form-group">
+                    <label for="username" class="form-label">Username</label>
+                    <div class="input-group">
+                        <span class="input-group-text">
+                            <i class="bi bi-at"></i>
+                        </span>
+                        <input 
+                            type="text" 
+                            id="username" 
+                            name="username" 
+                            class="form-control" 
+                            placeholder="johndoe" 
+                            required>
+                    </div>
+                    <small>3-20 characters, letters, numbers and underscores only</small>
+                </div>
+
+                <!-- Email -->
+                <div class="form-group">
+                    <label for="email" class="form-label">Gmail Address</label>
+                    <div class="input-group">
+                        <span class="input-group-text">
+                            <i class="bi bi-envelope"></i>
+                        </span>
+                        <input 
+                            type="email" 
+                            id="email" 
+                            name="email" 
+                            class="form-control" 
+                            placeholder="you@gmail.com" 
+                            required>
+                    </div>
+                    <small>Must be a valid Gmail address (@gmail.com)</small>
+                </div>
+
+                <!-- Password -->
+                <div class="form-group">
+                    <label for="password" class="form-label">Password</label>
+                    <div class="input-group">
+                        <span class="input-group-text">
+                            <i class="bi bi-lock"></i>
+                        </span>
+                        <input 
+                            type="password" 
+                            id="password" 
+                            name="password" 
+                            class="form-control" 
+                            placeholder="••••••••" 
+                            required>
+                    </div>
+                    <div class="password-strength" id="strengthMeter"></div>
+                    <small>At least 8 characters, mix of letters and numbers</small>
+                </div>
+
+                <!-- Confirm Password -->
+                <div class="form-group">
+                    <label for="confirmPassword" class="form-label">Confirm Password</label>
+                    <div class="input-group">
+                        <span class="input-group-text">
+                            <i class="bi bi-lock"></i>
+                        </span>
+                        <input 
+                            type="password" 
+                            id="confirmPassword" 
+                            name="confirm_password" 
+                            class="form-control" 
+                            placeholder="••••••••" 
+                            required>
+                    </div>
+                </div>
+
+                <!-- Terms Checkbox -->
+                <div class="form-check mb-3">
+                    <input 
+                        class="form-check-input" 
+                        type="checkbox" 
+                        id="agreeTerms" 
+                        name="agree_terms" 
+                        required>
+                    <label class="form-check-label" for="agreeTerms">
+                        I agree to the Terms of Service and Privacy Policy
+                    </label>
+                </div>
+
+                <!-- Submit Button -->
+                <button type="submit" class="btn btn-register" id="registerBtn">
+                    <span id="registerBtnText">Create Account</span>
+                    <span id="registerLoading" style="display: none;">
+                        <span class="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        Creating...
+                    </span>
+                </button>
+            </form>
+
+            <!-- Footer -->
+            <div class="register-footer">
+                <p>Already have an account? <a href="{{ url_for('auth.login') }}">Sign in</a></p>
+            </div>
+
+            <!-- Footer Text -->
+            <div class="text-center mt-4" style="color: #9ca3af; font-size: 0.85rem;">
+                <p>© 2024 Face Recognition Attendance System<br>All rights reserved.</p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Password strength meter
+    const passwordInput = document.getElementById('password');
+    const strengthMeter = document.getElementById('strengthMeter');
+
+    passwordInput.addEventListener('input', function() {
+        const password = this.value;
+        let strength = 'weak';
+
+        if (password.length >= 8) {
+            let hasLetters = /[a-zA-Z]/.test(password);
+            let hasNumbers = /[0-9]/.test(password);
+            let hasSpecial = /[!@#$%^&*_]/.test(password);
+
+            if (hasLetters && hasNumbers && hasSpecial && password.length >= 12) {
+                strength = 'strong';
+            } else if (hasLetters && hasNumbers) {
+                strength = 'good';
+            } else if (hasLetters || hasNumbers) {
+                strength = 'fair';
+            }
+        }
+
+        strengthMeter.className = 'password-strength ' + strength;
+    });
+
+    // Form submission
+    document.getElementById('registerForm').addEventListener('submit', function(e) {
+        const password = document.getElementById('password').value;
+        const confirmPassword = document.getElementById('confirmPassword').value;
+
+        if (password !== confirmPassword) {
+            e.preventDefault();
+            alert('Passwords do not match!');
+            return;
+        }
+
+        if (password.length < 8) {
+            e.preventDefault();
+            alert('Password must be at least 8 characters!');
+            return;
+        }
+
+        if (!document.getElementById('agreeTerms').checked) {
+            e.preventDefault();
+            alert('Please agree to the Terms of Service!');
+            return;
+        }
+
+        // Show loading state
+        const registerBtn = document.getElementById('registerBtn');
+        const registerBtnText = document.getElementById('registerBtnText');
+        const registerLoading = document.getElementById('registerLoading');
+        
+        registerBtnText.style.display = 'none';
+        registerLoading.style.display = 'inline';
+        registerBtn.disabled = true;
+    });
+
+    // Email validation for Gmail
+    document.getElementById('email').addEventListener('change', function() {
+        if (this.value && !this.value.endsWith('@gmail.com')) {
+            alert('Please use a Gmail address (@gmail.com)');
+            this.focus();
+        }
+    });
+});
+</script>
+{% endblock %}

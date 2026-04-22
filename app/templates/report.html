@@ -1,0 +1,326 @@
+{% extends "base.html" %}
+
+{% block title %}Reports - Face Recognition Attendance{% endblock %}
+
+{% block content %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('pageTitle').textContent = 'Reports';
+    });
+</script>
+
+<div class="row">
+    <!-- Page Header -->
+    <div class="col-12 mb-4">
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h2 class="mb-1 fw-bold">Attendance Reports</h2>
+                <p class="text-muted mb-0">View and manage attendance records</p>
+            </div>
+            <button id="refreshBtn" class="btn btn-outline-primary">
+                <i class="bi bi-arrow-clockwise me-2"></i>Refresh
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Filters -->
+<div class="row mb-4">
+    <div class="col-lg-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="searchInput" class="form-label fw-semibold small">Search by Name</label>
+                        <input 
+                            type="text" 
+                            id="searchInput" 
+                            class="form-control" 
+                            placeholder="Search attendance records...">
+                    </div>
+                    <div class="col-md-6">
+                        <label for="dateFilter" class="form-label fw-semibold small">Filter by Date</label>
+                        <input 
+                            type="date" 
+                            id="dateFilter" 
+                            class="form-control">
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Statistics Row -->
+<div class="row mb-4">
+    <div class="col-md-6 col-lg-3">
+        <div class="card border-0 shadow-sm bg-gradient-blue text-white">
+            <div class="card-body">
+                <small class="d-block mb-2 opacity-75">Total Records</small>
+                <h4 class="mb-0" id="totalRecords">--</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 col-lg-3">
+        <div class="card border-0 shadow-sm bg-gradient-green text-white">
+            <div class="card-body">
+                <small class="d-block mb-2 opacity-75">Today's Records</small>
+                <h4 class="mb-0" id="todayRecords">--</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 col-lg-3">
+        <div class="card border-0 shadow-sm bg-gradient-purple text-white">
+            <div class="card-body">
+                <small class="d-block mb-2 opacity-75">Unique Users</small>
+                <h4 class="mb-0" id="uniqueUsers">--</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-6 col-lg-3">
+        <div class="card border-0 shadow-sm bg-gradient-orange text-white">
+            <div class="card-body">
+                <small class="d-block mb-2 opacity-75">This Month</small>
+                <h4 class="mb-0" id="thisMonthRecords">--</h4>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Data Table -->
+<div class="row">
+    <div class="col-12">
+        <div class="card border-0 shadow-sm">
+            <div class="card-header bg-white border-bottom">
+                <h5 class="mb-0 fw-bold">Attendance Records</h5>
+            </div>
+            <div class="card-body p-0">
+                <!-- Loading State -->
+                <div id="loadingState" class="text-center py-5">
+                    <div class="spinner-border text-primary" role="status">
+                        <span class="visually-hidden">Loading...</span>
+                    </div>
+                    <p class="text-muted mt-3">Loading records...</p>
+                </div>
+
+                <!-- Table -->
+                <div id="recordsContainer" style="display: none;">
+                    <div class="d-block d-md-none px-3 py-3" id="mobileRecordsList"></div>
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0 d-none d-md-table">
+                            <thead class="table-light sticky-top">
+                                <tr>
+                                    <th class="px-4 py-3">Date</th>
+                                    <th class="px-4 py-3">Name</th>
+                                    <th class="px-4 py-3">Time</th>
+                                    <th class="px-4 py-3 text-end">Action</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tableBody">
+                                <tr>
+                                    <td colspan="4" class="text-center py-5 text-muted">No records found</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- Empty State -->
+                <div id="emptyState" class="text-center py-5">
+                    <i class="bi bi-inbox" style="font-size: 3rem; color: #dee2e6;"></i>
+                    <p class="text-muted mt-3">No attendance records found</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Pagination -->
+<nav id="paginationContainer" class="mt-4" style="display: none;">
+    <ul class="pagination justify-content-center" id="pagination">
+        <!-- Pagination buttons will be inserted here -->
+    </ul>
+</nav>
+
+<style>
+    .bg-gradient-blue {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    .bg-gradient-green {
+        background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+    }
+    .bg-gradient-purple {
+        background: linear-gradient(135deg, #a78bfa 0%, #8b5cf6 100%);
+    }
+    .bg-gradient-orange {
+        background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+    }
+</style>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+    let allRecords = [];
+    let filteredRecords = [];
+    const recordsPerPage = 20;
+    let currentPage = 1;
+
+    async function loadAttendance() {
+        const loading = document.getElementById('loadingState');
+        const container = document.getElementById('recordsContainer');
+        const empty = document.getElementById('emptyState');
+        
+        loading.style.display = 'block';
+        container.style.display = 'none';
+        empty.style.display = 'none';
+        
+        try {
+            const res = await fetch('/api/attendance');
+            const result = await res.json();
+            
+            if (result.success) {
+                allRecords = result.data || [];
+                filterRecords();
+                updateStatistics();
+                loading.style.display = 'none';
+                
+                if (allRecords.length === 0) {
+                    empty.style.display = 'block';
+                } else {
+                    container.style.display = 'block';
+                    renderTable();
+                }
+            } else {
+                notifyError('Failed to load records');
+                empty.style.display = 'block';
+            }
+        } catch (error) {
+            console.error('Error loading attendance:', error);
+            notifyError('Network error while loading records');
+            empty.style.display = 'block';
+        }
+    }
+
+    function filterRecords() {
+        const searchTerm = document.getElementById('searchInput').value.toLowerCase();
+        const dateFilter = document.getElementById('dateFilter').value;
+        
+        filteredRecords = allRecords.filter(record => {
+            const recordName = (record.name || 'Unknown User').toLowerCase();
+            const nameMatch = recordName.includes(searchTerm);
+            const dateMatch = !dateFilter || record.date === dateFilter;
+            return nameMatch && dateMatch;
+        });
+        
+        currentPage = 1;
+        renderTable();
+    }
+
+    function updateStatistics() {
+        const today = new Date().toLocaleDateString('en-CA'); 
+        const thisMonth = new Date().toLocaleDateString('en-CA').slice(0, 7);
+        
+        const todayCount = allRecords.filter(r => r.date === today).length;
+        const thisMonthCount = allRecords.filter(r => r.date.startsWith(thisMonth)).length;
+        const uniqueUsers = new Set(allRecords.map(r => r.name)).size;
+        
+        document.getElementById('totalRecords').textContent = allRecords.length;
+        document.getElementById('todayRecords').textContent = todayCount;
+        document.getElementById('uniqueUsers').textContent = uniqueUsers;
+        document.getElementById('thisMonthRecords').textContent = thisMonthCount;
+    }
+
+    function renderTable() {
+        const tbody = document.getElementById('tableBody');
+        const mobileList = document.getElementById('mobileRecordsList');
+        const start = (currentPage - 1) * recordsPerPage;
+        const end = start + recordsPerPage;
+        const pageRecords = filteredRecords.slice(start, end);
+        
+        if (pageRecords.length === 0) {
+            tbody.innerHTML = '<tr><td colspan="4" class="text-center py-5 text-muted">No records found</td></tr>';
+            mobileList.innerHTML = '<div class="text-center text-muted py-4">No records found</div>';
+            document.getElementById('paginationContainer').style.display = 'none';
+            return;
+        }
+        
+        tbody.innerHTML = pageRecords.map(record => `
+            <tr>
+                <td class="px-4 py-3">
+                    <small class="fw-semibold">${new Date(record.date).toLocaleDateString()}</small>
+                </td>
+                <td class="px-4 py-3">
+                    <div class="d-flex align-items-center">
+                        <div class="rounded-circle bg-primary bg-opacity-10 me-2" style="width: 36px; height: 36px; display: flex; align-items: center; justify-content: center;">
+                            <i class="bi bi-person text-primary" style="font-size: 1rem;"></i>
+                        </div>
+                        <div>
+                            <small class="fw-semibold d-block">${record.name || 'Unknown User'}</small>
+                        </div>
+                    </div>
+                </td>
+                <td class="px-4 py-3">
+                    <small class="text-muted">${record.time || record.time_in || '--'}</small>
+                </td>
+                <td class="px-4 py-3 text-end">
+                    <button class="btn btn-sm btn-outline-secondary" title="View Details">
+                        <i class="bi bi-eye"></i>
+                    </button>
+                </td>
+            </tr>
+        `).join('');
+
+        mobileList.innerHTML = pageRecords.map(record => `
+            <div class="card border-0 shadow-sm mb-3">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-start gap-3 mb-2">
+                        <div>
+                            <div class="fw-semibold">${record.name || 'Unknown User'}</div>
+                            <div class="text-muted small">${new Date(record.date).toLocaleDateString()}</div>
+                        </div>
+                        <span class="badge text-bg-light">${record.status || 'present'}</span>
+                    </div>
+                    <div class="small text-muted">
+                        <strong class="text-dark">Time:</strong> ${record.time || record.time_in || '--'}
+                    </div>
+                </div>
+            </div>
+        `).join('');
+        
+        // Render pagination if needed
+        if (filteredRecords.length > recordsPerPage) {
+            renderPagination();
+            document.getElementById('paginationContainer').style.display = 'block';
+        } else {
+            document.getElementById('paginationContainer').style.display = 'none';
+        }
+    }
+
+    function renderPagination() {
+        const totalPages = Math.ceil(filteredRecords.length / recordsPerPage);
+        const pagination = document.getElementById('pagination');
+        pagination.innerHTML = '';
+        
+        for (let i = 1; i <= totalPages; i++) {
+            const li = document.createElement('li');
+            li.className = `page-item ${i === currentPage ? 'active' : ''}`;
+            li.innerHTML = `<a class="page-link" href="#" onclick="goToPage(${i}); return false;">${i}</a>`;
+            pagination.appendChild(li);
+        }
+    }
+
+    function goToPage(page) {
+        currentPage = page;
+        renderTable();
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    // Event Listeners
+    document.addEventListener('DOMContentLoaded', loadAttendance);
+    document.getElementById('refreshBtn').addEventListener('click', loadAttendance);
+    document.getElementById('searchInput').addEventListener('input', filterRecords);
+    document.getElementById('dateFilter').addEventListener('change', filterRecords);
+</script>
+{% endblock %}
+

@@ -1,0 +1,249 @@
+
+
+{% extends "base.html" %}
+
+{% block title %}Mark Attendance - Face Recognition Attendance{% endblock %}
+
+{% block content %}
+<script>
+    document.addEventListener('DOMContentLoaded', () => {
+        document.getElementById('pageTitle').textContent = 'Mark Attendance';
+    });
+</script>
+
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card border-0 shadow-lg">
+            <div class="card-body p-4">
+                <!-- Header -->
+                <div class="mb-4">
+                    <h3 class="fw-bold mb-2">Mark Attendance</h3>
+                    <p class="text-muted">Face Scan for Attendance: Look directly at the camera</p>
+                </div>
+
+                <!-- Camera Preview -->
+                <div class="mb-4">
+                    <div class="camera-container position-relative rounded overflow-hidden bg-dark">
+                        <video id="videoElement" autoplay playsinline muted class="w-100 h-100"></video>
+                        <canvas id="canvasElement" style="display: none;"></canvas>
+                        
+                        <!-- Camera Frame Overlay with Instructions -->
+                        <div class="camera-frame position-absolute top-50 start-50 translate-middle">
+                            <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Crect x='20' y='20' width='160' height='160' fill='none' stroke='%2310b981' stroke-width='3'/%3E%3C/svg%3E" 
+                                 alt="Face frame" style="width: 300px; height: 300px; opacity: 0.8;">
+                        </div>
+
+                        <!-- Loading Indicator -->
+                        <div id="loadingSpinner" class="position-absolute top-50 start-50 translate-middle d-none">
+                            <div class="spinner-border text-light" role="status" style="width: 4rem; height: 4rem;">
+                                <span class="visually-hidden">Processing...</span>
+                            </div>
+                            <p class="text-light text-center mt-3 small">Scanning face...</p>
+                        </div>
+
+                        <!-- Success Checkmark -->
+                        <div id="successOverlay" class="position-absolute top-50 start-50 translate-middle d-none">
+                            <div class="text-center">
+                                <div class="rounded-circle bg-success bg-opacity-90 d-flex align-items-center justify-content-center" 
+                                     style="width: 100px; height: 100px;">
+                                    <i class="bi bi-check-lg text-white" style="font-size: 3rem;"></i>
+                                </div>
+                                <p class="text-light text-center mt-3 small fw-semibold">Attendance Marked!</p>
+                            </div>
+                        </div>
+                    </div>
+                    <small class="text-muted d-block mt-3">
+                        <i class="bi bi-info-circle"></i>
+                        Position your face within the green frame and ensure good lighting
+                    </small>
+                </div>
+
+                <!-- Action Button -->
+                <div class="d-grid gap-2">
+                    <button type="button" id="scanBtn" class="btn btn-success btn-lg">
+                        <i class="bi bi-camera-video-fill me-2"></i>
+                        Scan Face
+                    </button>
+                </div>
+
+                <!-- Status Message -->
+                <div id="statusMessage" class="mt-4 d-none" role="alert"></div>
+
+                <!-- Recent Attendance -->
+                <div class="mt-4 pt-4 border-top">
+                    <h6 class="fw-semibold mb-3">Today's Attendance</h6>
+                    <div id="todayAttendance">
+                        <p class="text-muted small text-center">Loading...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .camera-container {
+        width: 100%;
+        aspect-ratio: 4/3;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #000;
+        position: relative;
+        overflow: hidden;
+    }
+
+    .camera-container video {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .camera-frame {
+        pointer-events: none;
+        z-index: 10;
+    }
+</style>
+
+{% endblock %}
+
+{% block scripts %}
+
+<script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
+
+<script>
+console.log("JS LOADED");
+
+// ✅ INIT EMAILJS (PUT YOUR REAL PUBLIC KEY)
+emailjs.init("a-m2gDQmi6spO7CGi");
+
+// ✅ EMAIL FUNCTION (FIXED + DEBUG)
+function sendEmail(name, email, date, time) {
+
+    console.log("📤 Sending email with:", { name, email, date, time });
+
+    emailjs.send("service_tqrwc73", "template_304mtxa", {
+        name: name,
+        email: email,
+        date: date,
+        time: time
+    })
+    .then(function(response) {
+        console.log("✅ EMAIL SENT SUCCESS:", response);
+    })
+    .catch(function(error) {
+        console.log("❌ FULL ERROR OBJECT:", error);
+        console.log("❌ ERROR TEXT:", error.text);   // 🔥 THIS LINE IS KEY
+        alert("Email failed. Check console.");
+    });
+}
+</script>
+
+<script>
+    let isScanning = false;
+
+    document.addEventListener('DOMContentLoaded', () => {
+        startCamera('videoElement');
+        loadTodayAttendance();
+    });
+
+    async function loadTodayAttendance() {
+        try {
+            const res = await fetch('/api/attendance');
+            const result = await res.json();
+            
+            if (result.success) {
+                const today = new Date().toISOString().split('T')[0];
+                const todayRecords = result.data.filter(r => r.date === today);
+                
+                const container = document.getElementById('todayAttendance');
+                if (todayRecords.length === 0) {
+                    container.innerHTML = '<p class="text-muted small text-center">No attendance marked today</p>';
+                } else {
+                    container.innerHTML = `
+                        <div class="list-group">
+                            ${todayRecords.map(r => `
+                                <div class="list-group-item border-0 px-0 py-2 d-flex justify-content-between align-items-center">
+                                    <div>
+                                        <small class="fw-semibold">${r.name || 'Current User'}</small>
+                                    </div>
+                                    <div>
+                                        <small class="text-muted">${r.time || r.time_in || '--'}</small>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                }
+            }
+        } catch (error) {
+            console.error('Error loading today attendance:', error);
+        }
+    }
+
+    document.getElementById('scanBtn').addEventListener('click', async () => {
+        if (isScanning) return;
+
+        const btn = document.getElementById('scanBtn');
+        let base64Img = null;
+        
+        isScanning = true;
+        btn.disabled = true;
+        document.getElementById('loadingSpinner').classList.remove('d-none');
+
+        try {
+            base64Img = captureBase64('videoElement', 'canvasElement');
+            const res = await fetch('/api/recognize-face', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ image: base64Img })
+            });
+            const data = await res.json();
+            
+            document.getElementById('loadingSpinner').classList.add('d-none');
+
+            if (data.success && data.found && data.status !== 'duplicate') {
+
+                // SUCCESS CASE
+                document.getElementById('successOverlay').classList.remove('d-none');
+                notifySuccess(`Welcome ${data.user_name}! Attendance marked successfully.`);
+
+                const userEmail = data.user_email;
+
+                if (userEmail) {
+                    sendEmail(
+                        data.user_name || "User",
+                        userEmail,
+                        new Date().toISOString().split('T')[0],
+                        new Date().toLocaleTimeString()
+                    );
+                }
+
+                setTimeout(() => {
+                    document.getElementById('successOverlay').classList.add('d-none');
+                    loadTodayAttendance();
+                }, 2000);
+
+            } else if (data.status === 'duplicate') {
+
+                // 🔥 ADD THIS (IMPORTANT)
+                notifyError("Attendance already marked. You can mark again after 24 hours.");
+
+            } else if (!data.found) {
+
+                notifyError("Face not recognized. Please try again.");
+
+            }
+        } catch (err) {
+            document.getElementById('loadingSpinner').classList.add('d-none');
+            notifyError('Network error: Could not connect to server');
+        } finally {
+            isScanning = false;
+            btn.disabled = false;
+        }
+    });
+</script>
+{% endblock %}
+<script>
+
+
