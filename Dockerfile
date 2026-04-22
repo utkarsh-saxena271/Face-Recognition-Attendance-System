@@ -31,4 +31,4 @@ COPY . .
 EXPOSE 10000
 
 # Start app (Render-compatible)
-CMD ["sh", "-c", "gunicorn run:app --bind 0.0.0.0:$PORT --timeout 120 --workers 2"]
+CMD ["sh", "-c", "gunicorn --bind 0.0.0.0:$PORT --timeout 120 --workers 1 run:app"]
