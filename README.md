@@ -40,7 +40,7 @@ The system is a full-stack web application integrating:
 
 * Frontend interface (HTML, CSS, JavaScript)
 * Backend server (Flask)
-* Face recognition engine (OpenCV, face_recognition)
+* Face recognition engine (OpenCV, facenet, deepface)
 * Database system (SQLite - current, PostgreSQL - recommended)
 
 ---
