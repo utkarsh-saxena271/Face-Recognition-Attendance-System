@@ -1,108 +1,124 @@
-
-
 {% extends "base.html" %}
 
-{% block title %}Mark Attendance - Face Recognition Attendance{% endblock %}
+{% block title %}Mark Attendance{% endblock %}
 
 {% block content %}
-<script>
-    document.addEventListener('DOMContentLoaded', () => {
-        document.getElementById('pageTitle').textContent = 'Mark Attendance';
-    });
-</script>
 
 <div class="row justify-content-center">
     <div class="col-lg-8">
         <div class="card border-0 shadow-lg">
             <div class="card-body p-4">
-                <!-- Header -->
-                <div class="mb-4">
-                    <h3 class="fw-bold mb-2">Mark Attendance</h3>
-                    <p class="text-muted">Face Scan for Attendance: Look directly at the camera</p>
+
+                <div class="text-center mb-4">
+                    <h3 class="fw-bold">Mark Attendance</h3>
+                    <p class="text-muted">Place your face inside the box</p>
                 </div>
 
-                <!-- Camera Preview -->
-                <div class="mb-4">
-                    <div class="camera-container position-relative rounded overflow-hidden bg-dark">
-                        <video id="videoElement" autoplay playsinline muted class="w-100 h-100"></video>
-                        <canvas id="canvasElement" style="display: none;"></canvas>
-                        
-                        <!-- Camera Frame Overlay with Instructions -->
-                        <div class="camera-frame position-absolute top-50 start-50 translate-middle">
-                            <img src="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 200 200'%3E%3Crect x='20' y='20' width='160' height='160' fill='none' stroke='%2310b981' stroke-width='3'/%3E%3C/svg%3E" 
-                                 alt="Face frame" style="width: 300px; height: 300px; opacity: 0.8;">
-                        </div>
+                <!-- CAMERA -->
+                <div class="camera-container">
 
-                        <!-- Loading Indicator -->
-                        <div id="loadingSpinner" class="position-absolute top-50 start-50 translate-middle d-none">
-                            <div class="spinner-border text-light" role="status" style="width: 4rem; height: 4rem;">
-                                <span class="visually-hidden">Processing...</span>
-                            </div>
-                            <p class="text-light text-center mt-3 small">Scanning face...</p>
-                        </div>
+                    <video id="videoElement" autoplay playsinline muted></video>
+                    <canvas id="canvasElement" style="display:none;"></canvas>
 
-                        <!-- Success Checkmark -->
-                        <div id="successOverlay" class="position-absolute top-50 start-50 translate-middle d-none">
-                            <div class="text-center">
-                                <div class="rounded-circle bg-success bg-opacity-90 d-flex align-items-center justify-content-center" 
-                                     style="width: 100px; height: 100px;">
-                                    <i class="bi bi-check-lg text-white" style="font-size: 3rem;"></i>
-                                </div>
-                                <p class="text-light text-center mt-3 small fw-semibold">Attendance Marked!</p>
-                            </div>
-                        </div>
+                    <!-- FACE BOX -->
+                    <div id="faceBox"></div>
+
+                    <!-- LOADER -->
+                    <div id="loadingSpinner" class="overlay d-none">
+                        <div class="spinner-border text-light"></div>
                     </div>
-                    <small class="text-muted d-block mt-3">
-                        <i class="bi bi-info-circle"></i>
-                        Position your face within the green frame and ensure good lighting
-                    </small>
-                </div>
 
-                <!-- Action Button -->
-                <div class="d-grid gap-2">
-                    <button type="button" id="scanBtn" class="btn btn-success btn-lg">
-                        <i class="bi bi-camera-video-fill me-2"></i>
-                        Scan Face
-                    </button>
-                </div>
-
-                <!-- Status Message -->
-                <div id="statusMessage" class="mt-4 d-none" role="alert"></div>
-
-                <!-- Recent Attendance -->
-                <div class="mt-4 pt-4 border-top">
-                    <h6 class="fw-semibold mb-3">Today's Attendance</h6>
-                    <div id="todayAttendance">
-                        <p class="text-muted small text-center">Loading...</p>
+                    <!-- SUCCESS -->
+                    <div id="successOverlay" class="overlay d-none">
+                        <div class="success-box">✔</div>
                     </div>
+
                 </div>
+
+                <button id="scanBtn" class="btn btn-success w-100 mt-3">
+                    Scan Face
+                </button>
+
+                <div id="statusMessage" class="mt-3"></div>
+
             </div>
         </div>
     </div>
 </div>
 
 <style>
-    .camera-container {
-        width: 100%;
-        aspect-ratio: 4/3;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        background: #000;
-        position: relative;
-        overflow: hidden;
-    }
 
-    .camera-container video {
-        width: 100%;
-        height: 100%;
-        object-fit: cover;
-    }
+/* CAMERA */
+.camera-container{
+    position: relative;
+    width: 100%;
+    aspect-ratio: 4/3;
+    background: black;
+    border-radius: 12px;
+    overflow: hidden;
+}
 
-    .camera-frame {
-        pointer-events: none;
-        z-index: 10;
-    }
+/* VIDEO */
+video{
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+/* 🔥 BIG FACE BOX */
+#faceBox{
+    position: absolute;
+
+    width: 50%;              /* balanced */
+    max-width: 300px;
+
+    aspect-ratio: 1/1;
+
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+
+    border: 3px solid #00ff88;
+    border-radius: 16px;
+
+    box-shadow: 0 0 20px rgba(0,255,136,0.6);
+}
+
+/* GLOW */
+@keyframes glow{
+    0%{ box-shadow: 0 0 10px #00ff88;}
+    50%{ box-shadow: 0 0 30px #00ff88;}
+    100%{ box-shadow: 0 0 10px #00ff88;}
+}
+
+/* OVERLAY */
+.overlay{
+    position:absolute;
+    top:0;
+    left:0;
+    width:100%;
+    height:100%;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    background: rgba(0,0,0,0.4);
+}
+
+.success-box{
+    width:90px;          /* reduced from 150 */
+    height:90px;
+
+    background:#00ff88;
+    border-radius:16px;
+
+    display:flex;
+    align-items:center;
+    justify-content:center;
+
+    font-size:36px;      /* reduced from 60 */
+    color:white;
+}
+
 </style>
 
 {% endblock %}
@@ -112,138 +128,129 @@
 <script src="https://cdn.jsdelivr.net/npm/emailjs-com@3/dist/email.min.js"></script>
 
 <script>
-console.log("JS LOADED");
 
-// ✅ INIT EMAILJS (PUT YOUR REAL PUBLIC KEY)
-emailjs.init("a-m2gDQmi6spO7CGi");
+// 🔥 INIT EMAILJS
+(function(){
+    emailjs.init("a-m2gDQmi6spO7CGi"); // 🔁 replace
+})();
 
-// ✅ EMAIL FUNCTION (FIXED + DEBUG)
-function sendEmail(name, email, date, time) {
-
-    console.log("📤 Sending email with:", { name, email, date, time });
-
-    emailjs.send("service_tqrwc73", "template_304mtxa", {
-        name: name,
-        email: email,
-        date: date,
-        time: time
-    })
-    .then(function(response) {
-        console.log("✅ EMAIL SENT SUCCESS:", response);
-    })
-    .catch(function(error) {
-        console.log("❌ FULL ERROR OBJECT:", error);
-        console.log("❌ ERROR TEXT:", error.text);   // 🔥 THIS LINE IS KEY
-        alert("Email failed. Check console.");
-    });
+// START CAMERA
+async function startCamera(){
+    try{
+        const stream = await navigator.mediaDevices.getUserMedia({video:true});
+        videoElement.srcObject = stream;
+    }catch{
+        alert("Camera permission denied");
+    }
 }
-</script>
 
-<script>
-    let isScanning = false;
+// CAPTURE
+function captureFace(){
+    const video = document.getElementById("videoElement");
+    const canvas = document.getElementById("canvasElement");
+    const ctx = canvas.getContext("2d");
 
-    document.addEventListener('DOMContentLoaded', () => {
-        startCamera('videoElement');
-        loadTodayAttendance();
-    });
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
 
-    async function loadTodayAttendance() {
-        try {
-            const res = await fetch('/api/attendance');
-            const result = await res.json();
-            
-            if (result.success) {
-                const today = new Date().toISOString().split('T')[0];
-                const todayRecords = result.data.filter(r => r.date === today);
-                
-                const container = document.getElementById('todayAttendance');
-                if (todayRecords.length === 0) {
-                    container.innerHTML = '<p class="text-muted small text-center">No attendance marked today</p>';
-                } else {
-                    container.innerHTML = `
-                        <div class="list-group">
-                            ${todayRecords.map(r => `
-                                <div class="list-group-item border-0 px-0 py-2 d-flex justify-content-between align-items-center">
-                                    <div>
-                                        <small class="fw-semibold">${r.name || 'Current User'}</small>
-                                    </div>
-                                    <div>
-                                        <small class="text-muted">${r.time || r.time_in || '--'}</small>
-                                    </div>
-                                </div>
-                            `).join('')}
-                        </div>
-                    `;
-                }
+    const size = Math.min(vw, vh) * 0.5;
+
+    const sx = (vw - size) / 2;
+    const sy = (vh - size) / 2;
+
+    canvas.width = 400;
+    canvas.height = 400;
+
+    ctx.drawImage(video, sx, sy, size, size, 0, 0, 400, 400);
+
+    return canvas.toDataURL("image/jpeg", 0.9);
+}
+
+// UI
+function showMsg(msg, type){
+    document.getElementById("statusMessage").innerHTML =
+    `<div class="alert alert-${type}">${msg}</div>`;
+}
+
+let isScanning = false;
+let emailSent = false; // 🔥 prevent duplicate email
+
+document.addEventListener("DOMContentLoaded", ()=>{
+    startCamera();
+});
+
+// SCAN
+document.getElementById("scanBtn").addEventListener("click", async ()=>{
+
+    if(isScanning) return;
+
+    isScanning = true;
+    scanBtn.disabled = true;
+
+    loadingSpinner.classList.remove("d-none");
+
+    try{
+
+        const img = captureFace();
+
+        const res = await fetch("/api/recognize-face",{
+            method:"POST",
+            headers:{"Content-Type":"application/json"},
+            body:JSON.stringify({image:img})
+        });
+
+        const data = await res.json();
+
+        loadingSpinner.classList.add("d-none");
+
+        if(data.success && data.found && data.status !== "duplicate"){
+
+            successOverlay.classList.remove("d-none");
+
+            showMsg(`Welcome ${data.user_name}`, "success");
+
+            // 🔥 EMAILJS SEND
+            if(!emailSent){
+
+                const [date, time] = data.marked_at.split(" ");
+
+                emailjs.send("service_tqrwc73", "template_304mtxa", {
+                    name: data.user_name,
+                    date: date,
+                    time: time,
+                    email: data.user_email
+                })
+                .then(()=>{
+                    console.log("✅ Email sent");
+                    emailSent = true;
+                })
+                .catch((err)=>{
+                    console.error("❌ Email failed", err);
+                });
             }
-        } catch (error) {
-            console.error('Error loading today attendance:', error);
+
+            setTimeout(()=>{
+                successOverlay.classList.add("d-none");
+            },2000);
+
         }
+        else if(data.status === "duplicate"){
+            showMsg(`${data.user_name} already marked`, "warning");
+        }
+        else{
+            showMsg("Face not recognized", "danger");
+        }
+
+    }catch(err){
+        loadingSpinner.classList.add("d-none");
+        showMsg("Server error", "danger");
     }
 
-    document.getElementById('scanBtn').addEventListener('click', async () => {
-        if (isScanning) return;
+    isScanning = false;
+    scanBtn.disabled = false;
 
-        const btn = document.getElementById('scanBtn');
-        let base64Img = null;
-        
-        isScanning = true;
-        btn.disabled = true;
-        document.getElementById('loadingSpinner').classList.remove('d-none');
+});
 
-        try {
-            base64Img = captureBase64('videoElement', 'canvasElement');
-            const res = await fetch('/api/recognize-face', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ image: base64Img })
-            });
-            const data = await res.json();
-            
-            document.getElementById('loadingSpinner').classList.add('d-none');
-
-            if (data.success && data.found && data.status !== 'duplicate') {
-
-                // SUCCESS CASE
-                document.getElementById('successOverlay').classList.remove('d-none');
-                notifySuccess(`Welcome ${data.user_name}! Attendance marked successfully.`);
-
-                const userEmail = data.user_email;
-
-                if (userEmail) {
-                    sendEmail(
-                        data.user_name || "User",
-                        userEmail,
-                        new Date().toISOString().split('T')[0],
-                        new Date().toLocaleTimeString()
-                    );
-                }
-
-                setTimeout(() => {
-                    document.getElementById('successOverlay').classList.add('d-none');
-                    loadTodayAttendance();
-                }, 2000);
-
-            } else if (data.status === 'duplicate') {
-
-                // 🔥 ADD THIS (IMPORTANT)
-                notifyError("Attendance already marked. You can mark again after 24 hours.");
-
-            } else if (!data.found) {
-
-                notifyError("Face not recognized. Please try again.");
-
-            }
-        } catch (err) {
-            document.getElementById('loadingSpinner').classList.add('d-none');
-            notifyError('Network error: Could not connect to server');
-        } finally {
-            isScanning = false;
-            btn.disabled = false;
-        }
-    });
 </script>
+
 {% endblock %}
-<script>
-
-

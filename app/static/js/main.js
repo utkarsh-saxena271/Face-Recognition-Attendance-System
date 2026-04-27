@@ -85,27 +85,18 @@ function stopCamera() {
 function captureBase64(videoElementId, canvasElementId) {
     const video = document.getElementById(videoElementId);
     const canvas = document.getElementById(canvasElementId);
-
-    const cameraSupportError = getCameraSupportError();
-    if (cameraSupportError) {
-        throw new Error(cameraSupportError);
-    }
-
-    const context = canvas.getContext('2d');
+    const ctx = canvas.getContext('2d');
 
     if (!video.videoWidth || !video.videoHeight) {
-        throw new Error('Camera is still loading. Please wait a moment and try again.');
+        throw new Error('Camera loading...');
     }
-    
-    // Setup canvas size to match video
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 480;
-    
-    // Draw current frame
-    context.drawImage(video, 0, 0, canvas.width, canvas.height);
-    
-    // Get base64 (JPEG for smaller file size)
-    return canvas.toDataURL('image/jpeg', 0.85);
+
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+    return canvas.toDataURL('image/jpeg', 0.9); // 🔥 better quality
 }
 
 /**
