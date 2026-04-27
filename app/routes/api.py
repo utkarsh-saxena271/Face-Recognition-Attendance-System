@@ -30,10 +30,12 @@ def get_face_recognition_modules():
 
 
 @api_bp.route('/register-user', methods=['POST'])
+@api_bp.route('/register-face', methods=['POST']) 
 @login_required
 def register():
     try:
         logger.info(f"Face registration request started for user_id={current_user.id}")
+
         base64_to_cv2, get_face_embedding, recognize_user_fn, check_duplicate_face, available = get_face_recognition_modules()
 
         if not available:
@@ -56,21 +58,37 @@ def register():
         if err:
             return jsonify({'success': False, 'message': err}), 400
 
-        is_dup, dup_name = check_duplicate_face(embedding)
-        if is_dup:
-            return jsonify({'success': False, 'message': f'This face is already registered to {dup_name}.'}), 400
-
+        # 🔥 GET USER FIRST
         user_data = get_user_by_id(current_user.id)
         if not user_data:
             return jsonify({'success': False, 'message': 'User not found.'}), 404
 
+        # 🔒 BLOCK SAME USER RE-REGISTRATION
+        if user_data.get("embedding"):
+            return jsonify({
+                'success': False,
+                'message': 'You have already registered your face'
+            }), 400
+
+        # 🔒 BLOCK DUPLICATE FACE (OTHER USERS)
+        is_dup, dup_name = check_duplicate_face(embedding)
+        if is_dup:
+            return jsonify({
+                'success': False,
+                'message': f'This face is already registered to {dup_name}.'
+            }), 400
+
+        # ✅ SAVE FACE
         try:
             from app.models.db import get_db_connection
             conn = get_db_connection()
             c = conn.cursor()
 
             embedding_json = json.dumps(embedding.tolist())
-            c.execute('UPDATE users SET embedding = ? WHERE id = ?', (embedding_json, current_user.id))
+            c.execute(
+                'UPDATE users SET embedding = ? WHERE id = ?',
+                (embedding_json, current_user.id)
+            )
 
             conn.commit()
             conn.close()
@@ -93,7 +111,6 @@ def register():
 @api_bp.route('/recognize-face', methods=['POST'])
 def recognize():
     try:
-        # 🔥 FIX: UTC → IST
         recognition_time = datetime.now(IST)
 
         base64_to_cv2, get_face_embedding, recognize_user_fn, check_duplicate_face, available = get_face_recognition_modules()
@@ -127,22 +144,24 @@ def recognize():
 
             marked, status = mark_attendance(user_id, recognition_time)
 
+            attendance_time = recognition_time.strftime('%Y-%m-%d %H:%M:%S')
+
             if marked:
                 logger.info(f"Attendance marked for user {user_data['username']}")
 
-                # ✅ IST formatted time
-                attendance_time = recognition_time.strftime('%Y-%m-%d %H:%M:%S')
+                # ❌ NO EMAIL HERE (FRONTEND WILL HANDLE)
 
                 return jsonify({
                     'success': True,
                     'found': True,
                     'user_id': user_id,
                     'user_name': user_data['full_name'],
-                    'user_email': user_data['email'], 
+                    'user_email': user_data['email'],
                     'status': status,
                     'marked_at': attendance_time,
                     'message': f"{user_data['full_name']} marked at {attendance_time} IST"
-                })      
+                })
+
             else:
                 return jsonify({
                     'success': True,

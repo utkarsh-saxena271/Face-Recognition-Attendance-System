@@ -3,6 +3,8 @@ from flask_login import LoginManager
 from dotenv import load_dotenv
 import os
 import logging
+from datetime import timedelta
+
 
 def create_app():
     # Load environment variables
@@ -13,12 +15,17 @@ def create_app():
     # ==============================
     # 🔐 SECURITY & SESSION CONFIG
     # ==============================
-    app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-change-in-production')
+    secret = os.getenv('SECRET_KEY')
+    if not secret:
+        raise ValueError("SECRET_KEY not set in environment")
+    app.config['SECRET_KEY'] = secret
 
     app.config['SESSION_PERMANENT'] = False
-    app.config['SESSION_COOKIE_SECURE'] = os.getenv('FLASK_ENV', 'development') == 'production'
+    app.config['SESSION_COOKIE_SECURE'] = os.getenv('ENV') == 'production'
     app.config['SESSION_COOKIE_HTTPONLY'] = True
-    app.config['PERMANENT_SESSION_LIFETIME'] = int(os.getenv('SESSION_TIMEOUT_MINUTES', 30)) * 60
+    app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(
+        minutes=int(os.getenv('SESSION_TIMEOUT_MINUTES', 30))
+    )
 
     # ==============================
     # 🔑 LOGIN MANAGER
@@ -63,6 +70,32 @@ def create_app():
             logging.error(f"Database initialization failed: {e}")
 
     # ==============================
+    # 🚀 🔥 DEEPFACE PRELOAD (KEY FIX)
+    # ==============================
+    try:
+        from deepface import DeepFace
+        import numpy as np
+
+        print("🔥 Loading FaceNet model at startup...")
+
+        # load model once
+        DeepFace.build_model("Facenet")
+
+        # warmup run (VERY IMPORTANT)
+        dummy = np.zeros((224, 224, 3), dtype=np.uint8)
+        DeepFace.represent(
+            img_path=dummy,
+            model_name="Facenet",
+            enforce_detection=False,
+            detector_backend="opencv"
+        )
+
+        print("✅ Face model fully ready (no delay now)")
+
+    except Exception as e:
+        logging.error(f"DeepFace preload failed: {e}")
+
+    # ==============================
     # 📦 REGISTER BLUEPRINTS
     # ==============================
     from app.routes.views import views_bp
@@ -74,18 +107,19 @@ def create_app():
     app.register_blueprint(auth_bp)
 
     # ==============================
-    # ⏰ SCHEDULER (FIXED)
+    # ⏰ SCHEDULER (SAFE START)
     # ==============================
     if os.getenv('SCHEDULER_ENABLED', 'true').lower() == 'true':
         try:
             from app.services.scheduler import start_scheduler, scheduler
 
-            # ✅ Prevent multiple scheduler starts
-            if not scheduler.running:
-                start_scheduler()
-                logging.info("✅ Attendance scheduler started")
+            # prevent duplicate scheduler (important for production)
+            if os.getenv("WERKZEUG_RUN_MAIN") == "true" or not app.debug:
+                if not scheduler.running:
+                    start_scheduler()
+                    logging.info("Attendance scheduler started")
 
         except Exception as e:
-            logging.error(f"❌ Failed to start scheduler: {e}")
+            logging.error(f"Scheduler failed: {e}")
 
     return app

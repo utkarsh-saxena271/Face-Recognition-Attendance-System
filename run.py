@@ -2,8 +2,9 @@ from dotenv import load_dotenv
 import os
 from app import create_app
 
-# Load environment variables
-load_dotenv()
+# Load .env only in local development
+if os.getenv("ENV") != "production":
+    load_dotenv()
 
 # Create Flask app (used by Gunicorn)
 app = create_app()

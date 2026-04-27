@@ -1,3 +1,6 @@
+from datetime import datetime, timedelta, timezone
+IST = timezone(timedelta(hours=5, minutes=30))
+
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 import logging
@@ -21,13 +24,13 @@ class AttendanceScheduler:
     def mark_end_of_day_absentees():
         try:
             logger.info('🔄 Starting end-of-day absent marking...')
-            today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+            today = datetime.now(IST).strftime('%Y-%m-%d')
 
             all_users = get_all_users()
             marked_count = 0
 
             for user in all_users:
-                if user.get('embedding'):
+                if user.get('id'):
                     if check_and_mark_absent(user['id'], today):
                         marked_count += 1
                         logger.info(f"✓ Marked {user['username']} as absent")
@@ -49,7 +52,7 @@ class AttendanceScheduler:
     def send_daily_summaries():
         try:
             logger.info('📧 Sending daily summaries...')
-            today = datetime.now(timezone.utc).strftime('%Y-%m-%d')
+            today = datetime.now(IST).strftime('%Y-%m-%d')
 
             today_records = get_attendance_today()
             sent_count = 0
@@ -82,7 +85,7 @@ class AttendanceScheduler:
     def generate_monthly_reports():
         try:
             logger.info('📊 Generating monthly reports...')
-            today = datetime.now(timezone.utc)
+            today = datetime.now(IST)
 
             all_users = get_all_users()
             report_count = 0
@@ -120,21 +123,21 @@ def start_scheduler():
         # Schedule jobs
         scheduler.add_job(
             AttendanceScheduler.mark_end_of_day_absentees,
-            CronTrigger(hour=17, minute=30, day_of_week='0-4'),
+            CronTrigger(hour=17, minute=30, day_of_week='0-4', timezone=IST),
             id='mark_absentees',
             replace_existing=True
         )
 
         scheduler.add_job(
             AttendanceScheduler.send_daily_summaries,
-            CronTrigger(hour=18, minute=0),
+            CronTrigger(hour=18, minute=0, timezone=IST),
             id='send_summaries',
             replace_existing=True
         )
 
         scheduler.add_job(
             AttendanceScheduler.generate_monthly_reports,
-            CronTrigger(day=1, hour=23, minute=0),
+            CronTrigger(day=1, hour=23, minute=0, timezone=IST),
             id='monthly_reports',
             replace_existing=True
         )
